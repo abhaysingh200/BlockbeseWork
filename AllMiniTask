@@ -1,0 +1,130 @@
+const crypto = require('crypto');
+
+class Block {
+  constructor(index, timestamp, data, previousHash = '') {
+    this.index = index;
+    this.timestamp = timestamp;
+    this.data = data;
+    this.previousHash = previousHash;
+    this.nonce = 0;
+    this.hash = this.calculateHash();
+  }
+
+  calculateHash() {
+    return crypto.createHash('sha256')
+      .update(this.index + this.timestamp + JSON.stringify(this.data) + this.previousHash + this.nonce)
+      .digest('hex');
+  }
+}
+
+// Create blockchain with 3 blocks
+let blockchain = [];
+
+function createGenesisBlock() {
+  return new Block(0, Date.now().toString(), "Genesis Block", "0");
+}
+
+function addBlock(newBlock) {
+  newBlock.previousHash = blockchain[blockchain.length - 1].hash;
+  newBlock.hash = newBlock.calculateHash();
+  blockchain.push(newBlock);
+}
+
+blockchain.push(createGenesisBlock());
+addBlock(new Block(1, Date.now().toString(), { amount: 100 }));
+addBlock(new Block(2, Date.now().toString(), { amount: 50 }));
+
+console.log("Original Blockchain:");
+console.log(blockchain);
+
+// Tampering Block 1 data
+blockchain[1].data = { amount: 1000 };
+blockchain[1].hash = blockchain[1].calculateHash();
+
+console.log("\nBlockchain after tampering with Block 1:");
+console.log(blockchain);
+
+// Notice the inconsistency because block 2's previousHash still points to old hash of block 1.
+
+
+
+
+
+
+
+
+
+
+
+
+class BlockWithMining extends Block {
+  mineBlock(difficulty) {
+    const target = '0'.repeat(difficulty);
+    while (this.hash.substring(0, difficulty) !== target) {
+      this.nonce++;
+      this.hash = this.calculateHash();
+    }
+    console.log(`Block mined: ${this.hash} with nonce: ${this.nonce}`);
+  }
+}
+
+let miningBlockchain = [];
+miningBlockchain.push(new BlockWithMining(0, Date.now().toString(), "Genesis Block", "0"));
+
+const difficulty = 4;
+
+let blockToMine = new BlockWithMining(1, Date.now().toString(), { amount: 200 }, miningBlockchain[0].hash);
+
+console.time('Mining Time');
+blockToMine.mineBlock(difficulty);
+console.timeEnd('Mining Time');
+
+miningBlockchain.push(blockToMine);
+
+console.log(miningBlockchain);
+
+
+
+
+
+
+
+// Mock Validators
+const validators = {
+  PoW: [
+    { name: 'MinerA', power: Math.floor(Math.random() * 100) },
+    { name: 'MinerB', power: Math.floor(Math.random() * 100) },
+    { name: 'MinerC', power: Math.floor(Math.random() * 100) },
+  ],
+  PoS: [
+    { name: 'StakerA', stake: Math.floor(Math.random() * 1000) },
+    { name: 'StakerB', stake: Math.floor(Math.random() * 1000) },
+    { name: 'StakerC', stake: Math.floor(Math.random() * 1000) },
+  ],
+  DPoS: [
+    { name: 'DelegateA', votes: 5 },
+    { name: 'DelegateB', votes: 8 },
+    { name: 'DelegateC', votes: 3 },
+  ]
+};
+
+// Proof of Work: select validator with highest power
+const powWinner = validators.PoW.reduce((max, v) => v.power > max.power ? v : max);
+console.log(`PoW selected validator: ${powWinner.name} with power ${powWinner.power}`);
+
+// Proof of Stake: select validator with highest stake
+const posWinner = validators.PoS.reduce((max, v) => v.stake > max.stake ? v : max);
+console.log(`PoS selected validator: ${posWinner.name} with stake ${posWinner.stake}`);
+
+// Delegated Proof of Stake: randomly choose delegate weighted by votes
+function weightedRandomChoice(delegates) {
+  const totalVotes = delegates.reduce((sum, d) => sum + d.votes, 0);
+  let rand = Math.random() * totalVotes;
+  for (const d of delegates) {
+    if (rand < d.votes) return d;
+    rand -= d.votes;
+  }
+}
+
+const dposWinner = weightedRandomChoice(validators.DPoS);
+console.log(`DPoS selected delegate: ${dposWinner.name} with votes ${dposWinner.votes}`);
